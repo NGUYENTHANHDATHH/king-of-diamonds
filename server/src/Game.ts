@@ -30,6 +30,10 @@ export class Game {
 
     public getState = () => this.state;
     
+    public setState(state: GameState) {
+        this.state = state;
+    }
+    
     public addPlayer(id: string, name: string) {
         // Prevent duplicate players/spectators
         if (this.state.players.some(p => p.id === id) || this.state.spectators.some(s => s.id === id)) {

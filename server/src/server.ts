@@ -3,7 +3,10 @@ import express from 'express';
 import http from 'http';
 import { Server, Socket } from 'socket.io';
 import cors from 'cors';
+import fs from 'fs';
+import path from 'path';
 import { Game } from './Game';
+import { GameState } from './types';
 
 const app = express();
 app.use(cors());
@@ -18,6 +21,62 @@ const io = new Server(server, {
 const port = process.env.PORT || 4000;
 
 const rooms = new Map<string, Game>();
+const ROOMS_FILE = path.join(__dirname, '..', 'data', 'rooms.json');
+
+// Ensure data directory exists
+const dataDir = path.dirname(ROOMS_FILE);
+if (!fs.existsSync(dataDir)) {
+    fs.mkdirSync(dataDir, { recursive: true });
+}
+
+// Persistence functions
+const saveRooms = () => {
+    try {
+        const roomsData: { [roomId: string]: GameState } = {};
+        rooms.forEach((game, roomId) => {
+            roomsData[roomId] = game.getState();
+        });
+        fs.writeFileSync(ROOMS_FILE, JSON.stringify(roomsData, null, 2));
+        console.log(`Saved ${rooms.size} rooms to storage`);
+    } catch (error) {
+        console.error('Error saving rooms:', error);
+    }
+};
+
+const loadRooms = () => {
+    try {
+        if (fs.existsSync(ROOMS_FILE)) {
+            const data = fs.readFileSync(ROOMS_FILE, 'utf8');
+            const roomsData: { [roomId: string]: GameState } = JSON.parse(data);
+            
+            Object.entries(roomsData).forEach(([roomId, gameState]) => {
+                // Only load rooms that are in lobby state (not active games)
+                if (gameState.gamePhase === 'LOBBY' && gameState.players.length > 0) {
+                    const game = new Game(roomId, (state) => {
+                        io.to(roomId).emit('gameStateUpdate', state);
+                    });
+                    
+                    // Restore the game state
+                    game.setState(gameState);
+                    rooms.set(roomId, game);
+                    console.log(`Loaded room ${roomId} with ${gameState.players.length} players`);
+                }
+            });
+            
+            console.log(`Loaded ${rooms.size} rooms from storage`);
+        }
+    } catch (error) {
+        console.error('Error loading rooms:', error);
+    }
+};
+
+// Load existing rooms on startup
+loadRooms();
+
+// Periodic save every 30 seconds to ensure data persistence
+setInterval(() => {
+    saveRooms();
+}, 30000);
 
 interface SocketWithRoom extends Socket {
     roomId?: string;
@@ -41,6 +100,8 @@ io.on('connection', (socket: SocketWithRoom) => {
         const roomId = generateRoomId();
         const game = new Game(roomId, (gameState) => {
             io.to(roomId).emit('gameStateUpdate', gameState);
+            // Save rooms after each state update
+            saveRooms();
         });
         rooms.set(roomId, game);
         console.log(`Room created: ${roomId} by ${name}`);
@@ -48,6 +109,8 @@ io.on('connection', (socket: SocketWithRoom) => {
         socket.roomId = roomId;
         game.addPlayer(socket.id, name);
         socket.emit('roomCreated', { roomId });
+        // Save the new room
+        saveRooms();
     });
 
     socket.on('joinRoom', ({ roomId, name }: { roomId: string, name: string }) => {
@@ -99,6 +162,8 @@ io.on('connection', (socket: SocketWithRoom) => {
                     rooms.delete(roomId);
                     console.log(`Room ${roomId} is empty and has been closed.`);
                 }
+                // Save rooms after player disconnect
+                saveRooms();
             }
         }
     });
@@ -106,4 +171,17 @@ io.on('connection', (socket: SocketWithRoom) => {
 
 server.listen(port, () => {
     console.log(`Server is running on port ${port}`);
+});
+
+// Graceful shutdown
+process.on('SIGINT', () => {
+    console.log('Shutting down server...');
+    saveRooms();
+    process.exit(0);
+});
+
+process.on('SIGTERM', () => {
+    console.log('Shutting down server...');
+    saveRooms();
+    process.exit(0);
 });
