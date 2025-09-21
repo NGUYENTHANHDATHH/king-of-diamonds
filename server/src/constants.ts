@@ -1,8 +1,8 @@
 import { Rule } from './types';
 
-export const MAX_PLAYERS = 5;
+export const MAX_PLAYERS = 7;
 export const WINNING_PLAYER_COUNT = 1;
-export const ELIMINATION_SCORE = -10;
+export const ELIMINATION_SCORE = -6;
 export const STARTING_SCORE = 0;
 
 export const ROUND_TIME_DEFAULT = 60;
