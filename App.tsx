@@ -13,7 +13,7 @@ import RoomSelection from './components/RoomSelection';
 const App: React.FC = () => {
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [clientId, setClientId] = useState<string | null>(null);
-  const [playerName, setPlayerName] = useState<string | null>(() => sessionStorage.getItem('playerName'));
+  const [playerName, setPlayerName] = useState<string | null>(() => localStorage.getItem('playerName'));
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -63,7 +63,7 @@ const App: React.FC = () => {
   }, [playerName]);
 
   const handleLogin = (name: string) => {
-    sessionStorage.setItem('playerName', name);
+    localStorage.setItem('playerName', name);
     setPlayerName(name);
   };
 
