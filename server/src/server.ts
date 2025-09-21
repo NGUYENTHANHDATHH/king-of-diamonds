@@ -10,6 +10,7 @@ import { GameState } from './types';
 
 const app = express();
 app.use(cors());
+app.use(express.json());
 const server = http.createServer(app);
 const io = new Server(server, {
     cors: {
@@ -77,6 +78,31 @@ loadRooms();
 setInterval(() => {
     saveRooms();
 }, 30000);
+
+// API endpoint to get available rooms
+app.get('/api/rooms', (req, res) => {
+    try {
+        const availableRooms = Array.from(rooms.entries())
+            .filter(([roomId, game]) => {
+                const state = game.getState();
+                return state.gamePhase === 'LOBBY' && state.players.length > 0;
+            })
+            .map(([roomId, game]) => {
+                const state = game.getState();
+                return {
+                    roomId,
+                    playerCount: state.players.length,
+                    maxPlayers: 7, // MAX_PLAYERS constant
+                    hostName: state.players.find(p => p.isHost)?.name || 'Unknown'
+                };
+            });
+        
+        res.json({ rooms: availableRooms });
+    } catch (error) {
+        console.error('Error fetching rooms:', error);
+        res.status(500).json({ error: 'Failed to fetch rooms' });
+    }
+});
 
 interface SocketWithRoom extends Socket {
     roomId?: string;
