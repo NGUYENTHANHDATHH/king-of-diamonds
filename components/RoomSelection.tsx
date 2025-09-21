@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
+import { config } from '../config';
 
 interface Room {
     roomId: string;
@@ -20,7 +21,7 @@ const RoomSelection: React.FC<RoomSelectionProps> = ({ onCreateRoom, onJoinRoom 
 
     const fetchRooms = async () => {
         try {
-            const response = await fetch('http://localhost:4000/api/rooms');
+            const response = await fetch(`${config.getServerUrl()}/api/rooms`);
             const data = await response.json();
             setAvailableRooms(data.rooms || []);
         } catch (error) {

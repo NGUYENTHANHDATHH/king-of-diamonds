@@ -1,8 +1,8 @@
 
 import { io, Socket } from 'socket.io-client';
+import { config } from './config';
 
-// IMPORTANT: Replace with your server's public URL when deploying
-const SERVER_URL = 'https://king-of-diamonds-6dix.onrender.com';
+const SERVER_URL = config.getServerUrl();
 
 class SocketService {
   public socket: Socket;
