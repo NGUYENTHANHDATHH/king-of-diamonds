@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { Player } from '../types';
+import { MAX_PLAYERS } from '../constants';
 
 interface LobbyProps {
   onStart: () => void;
@@ -31,7 +32,7 @@ const Lobby: React.FC<LobbyProps> = ({ onStart, players, spectators, clientId, r
 
       <div className="w-full max-w-3xl mb-8">
         <div className="bg-kod-gray p-4 rounded-lg">
-          <h2 className="text-2xl font-bold mb-4 text-kod-cyan">Players in Lobby ({players.length}/5)</h2>
+          <h2 className="text-2xl font-bold mb-4 text-kod-cyan">Players in Lobby ({players.length}/{MAX_PLAYERS})</h2>
           <div className="space-y-2 text-left">
             {players.map(p => (
               <div key={p.id} className="bg-kod-light-gray p-3 rounded flex justify-between items-center">
@@ -39,7 +40,7 @@ const Lobby: React.FC<LobbyProps> = ({ onStart, players, spectators, clientId, r
                 <span>{p.isHost ? '👑 Host' : 'Joined'}</span>
               </div>
             ))}
-             {Array.from({ length: 5 - players.length }).map((_, i) => (
+             {Array.from({ length: MAX_PLAYERS - players.length }).map((_, i) => (
                 <div key={i} className="bg-kod-light-gray/50 p-3 rounded text-gray-500">Waiting for player...</div>
              ))}
           </div>

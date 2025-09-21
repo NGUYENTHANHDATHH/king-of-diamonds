@@ -9,8 +9,12 @@ class SocketService {
 
   constructor() {
     this.socket = io(SERVER_URL, {
-      transports: ['websocket'],
+      transports: ['websocket', 'polling'], // Fallback to polling if websocket fails
       autoConnect: false,
+      timeout: 10000, // 10 second timeout
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
     });
   }
 }

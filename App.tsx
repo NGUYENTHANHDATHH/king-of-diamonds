@@ -19,7 +19,7 @@ const App: React.FC = () => {
   useEffect(() => {
     if (!playerName) return;
 
-    socket.on('connect', () => {
+    const handleConnect = () => {
       console.log('Connected to server with id:', socket.id);
       setClientId(socket.id);
       
@@ -29,19 +29,19 @@ const App: React.FC = () => {
         const roomId = roomIdMatch[1];
         socket.emit('joinRoom', { roomId, name: playerName });
       }
-    });
+    };
 
-    socket.on('gameStateUpdate', (newState: GameState) => {
+    const handleGameStateUpdate = (newState: GameState) => {
       setGameState(newState);
       setError(null);
-    });
+    };
 
-    socket.on('roomCreated', ({ roomId }: { roomId: string }) => {
+    const handleRoomCreated = ({ roomId }: { roomId: string }) => {
         window.history.pushState({}, '', `/room/${roomId}`);
         socket.emit('joinRoom', { roomId, name: playerName });
-    });
+    };
 
-    socket.on('error', (data: { message: string }) => {
+    const handleError = (data: { message: string }) => {
       console.error('Server error:', data.message);
       setError(data.message);
       // If room not found, clear URL and state
@@ -49,15 +49,34 @@ const App: React.FC = () => {
         window.history.pushState({}, '', '/');
         setGameState(null);
       }
-    });
+    };
+
+    const handleDisconnect = () => {
+      console.log('Disconnected from server');
+      setError('Connection lost. Attempting to reconnect...');
+    };
+
+    const handleReconnect = () => {
+      console.log('Reconnected to server');
+      setError(null);
+    };
+
+    socket.on('connect', handleConnect);
+    socket.on('gameStateUpdate', handleGameStateUpdate);
+    socket.on('roomCreated', handleRoomCreated);
+    socket.on('error', handleError);
+    socket.on('disconnect', handleDisconnect);
+    socket.on('reconnect', handleReconnect);
     
     socket.connect();
 
     return () => {
-      socket.off('connect');
-      socket.off('gameStateUpdate');
-      socket.off('roomCreated');
-      socket.off('error');
+      socket.off('connect', handleConnect);
+      socket.off('gameStateUpdate', handleGameStateUpdate);
+      socket.off('roomCreated', handleRoomCreated);
+      socket.off('error', handleError);
+      socket.off('disconnect', handleDisconnect);
+      socket.off('reconnect', handleReconnect);
       socket.disconnect();
     };
   }, [playerName]);

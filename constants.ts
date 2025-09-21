@@ -1,12 +1,13 @@
 import { Rule } from './types';
 
-export const INITIAL_PLAYER_COUNT = 5;
+export const MAX_PLAYERS = 7;
 export const WINNING_PLAYER_COUNT = 1;
-export const ELIMINATION_SCORE = -10;
+export const ELIMINATION_SCORE = -6;
 export const STARTING_SCORE = 0;
 
 export const ROUND_TIME_DEFAULT = 60;
 export const ROUND_TIME_SPECIAL = 300; // 5 minutes
+export const RESULTS_DELAY = 10000; // 10 seconds to show results
 
 export const RULES: Rule[] = [
   {

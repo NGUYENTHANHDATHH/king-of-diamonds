@@ -35,7 +35,25 @@ export class Game {
     }
     
     public addPlayer(id: string, name: string) {
-        // Prevent duplicate players/spectators
+        // Check if player with same name already exists and update their ID
+        const existingPlayer = this.state.players.find(p => p.name === name);
+        const existingSpectator = this.state.spectators.find(s => s.name === name);
+        
+        if (existingPlayer) {
+            // Update existing player's ID (reconnection)
+            existingPlayer.id = id;
+            this.broadcastUpdate(this.state);
+            return;
+        }
+        
+        if (existingSpectator) {
+            // Update existing spectator's ID (reconnection)
+            existingSpectator.id = id;
+            this.broadcastUpdate(this.state);
+            return;
+        }
+
+        // Prevent duplicate players/spectators by ID
         if (this.state.players.some(p => p.id === id) || this.state.spectators.some(s => s.id === id)) {
             return;
         }

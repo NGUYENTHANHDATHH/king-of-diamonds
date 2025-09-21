@@ -21,7 +21,19 @@ const RoomSelection: React.FC<RoomSelectionProps> = ({ onCreateRoom, onJoinRoom 
 
     const fetchRooms = async () => {
         try {
-            const response = await fetch(`${config.getServerUrl()}/api/rooms`);
+            const response = await fetch(`${config.getServerUrl()}/api/rooms`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                // Add timeout to prevent hanging requests
+                signal: AbortSignal.timeout(5000)
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
             const data = await response.json();
             setAvailableRooms(data.rooms || []);
         } catch (error) {
@@ -83,7 +95,11 @@ const RoomSelection: React.FC<RoomSelectionProps> = ({ onCreateRoom, onJoinRoom 
                     {loading ? (
                         <div className="text-kod-light-gray">Loading rooms...</div>
                     ) : availableRooms.length === 0 ? (
-                        <div className="text-kod-light-gray">No rooms available. Create one above!</div>
+                        <div className="text-kod-light-gray">
+                            No rooms available. Create one above!
+                            <br />
+                            <small className="text-gray-500">Make sure the server is running</small>
+                        </div>
                     ) : (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                             {availableRooms.map((room) => (

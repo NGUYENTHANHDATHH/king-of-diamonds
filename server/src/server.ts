@@ -7,6 +7,7 @@ import fs from 'fs';
 import path from 'path';
 import { Game } from './Game';
 import { GameState } from './types';
+import { MAX_PLAYERS } from './constants';
 
 const app = express();
 app.use(cors());
@@ -55,6 +56,8 @@ const loadRooms = () => {
                 if (gameState.gamePhase === 'LOBBY' && gameState.players.length > 0) {
                     const game = new Game(roomId, (state) => {
                         io.to(roomId).emit('gameStateUpdate', state);
+                        // Save rooms after each state update
+                        saveRooms();
                     });
                     
                     // Restore the game state
@@ -92,7 +95,7 @@ app.get('/api/rooms', (req, res) => {
                 return {
                     roomId,
                     playerCount: state.players.length,
-                    maxPlayers: 7, // MAX_PLAYERS constant
+                    maxPlayers: MAX_PLAYERS,
                     hostName: state.players.find(p => p.isHost)?.name || 'Unknown'
                 };
             });
