@@ -13,8 +13,9 @@ class SocketService {
       autoConnect: false,
       timeout: 10000, // 10 second timeout
       reconnection: true,
-      reconnectionAttempts: 5,
+      reconnectionAttempts: 10, // More attempts
       reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000, // Max delay between attempts
     });
   }
 }

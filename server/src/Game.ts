@@ -35,12 +35,15 @@ export class Game {
     }
     
     public addPlayer(id: string, name: string) {
+        console.log(`Adding player ${name} (${id}) to room ${this.roomId}`);
+        
         // Check if player with same name already exists and update their ID
         const existingPlayer = this.state.players.find(p => p.name === name);
         const existingSpectator = this.state.spectators.find(s => s.name === name);
         
         if (existingPlayer) {
             // Update existing player's ID (reconnection)
+            console.log(`Updating existing player ${name} ID from ${existingPlayer.id} to ${id}`);
             existingPlayer.id = id;
             this.broadcastUpdate(this.state);
             return;
@@ -48,6 +51,7 @@ export class Game {
         
         if (existingSpectator) {
             // Update existing spectator's ID (reconnection)
+            console.log(`Updating existing spectator ${name} ID from ${existingSpectator.id} to ${id}`);
             existingSpectator.id = id;
             this.broadcastUpdate(this.state);
             return;
@@ -55,6 +59,7 @@ export class Game {
 
         // Prevent duplicate players/spectators by ID
         if (this.state.players.some(p => p.id === id) || this.state.spectators.some(s => s.id === id)) {
+            console.log(`Player ${name} (${id}) already exists, skipping`);
             return;
         }
 
@@ -62,8 +67,10 @@ export class Game {
         const isGameInProgress = this.state.gamePhase !== GamePhase.LOBBY;
 
         if (isGameFull || isGameInProgress) {
+            console.log(`Adding ${name} as spectator (game full: ${isGameFull}, in progress: ${isGameInProgress})`);
             this.state.spectators.push({ id, name });
         } else {
+            console.log(`Adding ${name} as player (host: ${this.state.players.length === 0})`);
              const player: Player = {
                 id,
                 name,
@@ -76,7 +83,13 @@ export class Game {
             this.state.players.push(player);
         }
 
-        this.broadcastUpdate(this.state);
+        console.log(`Broadcasting update for room ${this.roomId} - Players: ${this.state.players.length}, Spectators: ${this.state.spectators.length}`);
+        try {
+            this.broadcastUpdate(this.state);
+            console.log(`Successfully broadcasted update for room ${this.roomId}`);
+        } catch (error) {
+            console.error(`Error broadcasting update for room ${this.roomId}:`, error);
+        }
     }
 
     public removePlayer(id: string) {
@@ -104,11 +117,25 @@ export class Game {
     }
     
     public startGame(playerId: string) {
+        console.log(`startGame called for player ${playerId} in room ${this.roomId}`);
         const player = this.state.players.find(p => p.id === playerId);
-        if (!player || !player.isHost || this.state.players.length < 2) return;
+        console.log(`Found player:`, player);
+        console.log(`Player is host:`, player?.isHost);
+        console.log(`Players count:`, this.state.players.length);
+        
+        if (!player || !player.isHost || this.state.players.length < 2) {
+            console.log(`Cannot start game: player=${!!player}, isHost=${player?.isHost}, playersCount=${this.state.players.length}`);
+            return;
+        }
 
+        console.log(`Starting game in room ${this.roomId}`);
         this.state.gamePhase = GamePhase.INTRODUCTION;
-        this.broadcastUpdate(this.state);
+        try {
+            this.broadcastUpdate(this.state);
+            console.log(`Successfully broadcasted game start for room ${this.roomId}`);
+        } catch (error) {
+            console.error(`Error broadcasting game start for room ${this.roomId}:`, error);
+        }
         
         setTimeout(() => {
             this.startChoosingPhase();

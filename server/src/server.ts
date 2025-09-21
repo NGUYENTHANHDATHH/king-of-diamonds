@@ -147,18 +147,37 @@ io.on('connection', (socket: SocketWithRoom) => {
         if (game) {
             socket.join(roomId);
             socket.roomId = roomId;
+            console.log(`${name} (${socket.id}) joining room ${roomId} - Current players: ${game.getState().players.length}`);
             game.addPlayer(socket.id, name);
-            console.log(`${name} (${socket.id}) joined room ${roomId}`);
+            console.log(`${name} (${socket.id}) joined room ${roomId} - New player count: ${game.getState().players.length}`);
         } else {
+            console.log(`Room ${roomId} not found for ${name} (${socket.id})`);
             socket.emit('error', { message: `Room ${roomId} not found.` });
         }
     });
 
     socket.on('startGame', ({ roomId }: { roomId: string }) => {
+        console.log(`Start game request from ${socket.id} for room ${roomId}`);
         const game = rooms.get(roomId);
         if (game) {
-            console.log(`Player ${socket.id} started the game in room ${roomId}`);
+            const gameState = game.getState();
+            console.log(`Game state before start:`, {
+                players: gameState.players.map(p => ({ id: p.id, name: p.name, isHost: p.isHost })),
+                gamePhase: gameState.gamePhase,
+                requestingPlayer: socket.id
+            });
+            
+            // Prevent starting game if already in progress
+            if (gameState.gamePhase !== 'LOBBY') {
+                console.log(`Cannot start game: already in phase ${gameState.gamePhase}`);
+                socket.emit('error', { message: 'Game is already in progress' });
+                return;
+            }
+            
             game.startGame(socket.id);
+        } else {
+            console.log(`Room ${roomId} not found for start game request from ${socket.id}`);
+            socket.emit('error', { message: `Room ${roomId} not found` });
         }
     });
 

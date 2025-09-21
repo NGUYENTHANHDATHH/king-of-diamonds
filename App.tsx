@@ -19,19 +19,29 @@ const App: React.FC = () => {
   useEffect(() => {
     if (!playerName) return;
 
+    let disconnectTimeout: NodeJS.Timeout;
+
     const handleConnect = () => {
       console.log('Connected to server with id:', socket.id);
       setClientId(socket.id);
+      setError(null); // Clear any connection errors
       
       const path = window.location.pathname;
       const roomIdMatch = path.match(/\/room\/([A-Z0-9]{6})/);
       if (roomIdMatch) {
         const roomId = roomIdMatch[1];
+        console.log('Rejoining room after reconnect:', roomId);
         socket.emit('joinRoom', { roomId, name: playerName });
       }
     };
 
+    const handleConnectError = (error: Error) => {
+      console.error('Socket connection error:', error);
+      setError('Failed to connect to server. Please check your connection.');
+    };
+
     const handleGameStateUpdate = (newState: GameState) => {
+      console.log('Game state update received:', newState);
       setGameState(newState);
       setError(null);
     };
@@ -51,35 +61,94 @@ const App: React.FC = () => {
       }
     };
 
-    const handleDisconnect = () => {
-      console.log('Disconnected from server');
-      setError('Connection lost. Attempting to reconnect...');
+    const handleDisconnect = (reason: string) => {
+      console.log('Disconnected from server:', reason);
+      
+      // Clear any existing timeout
+      if (disconnectTimeout) {
+        clearTimeout(disconnectTimeout);
+      }
+      
+      // Only show error for truly unexpected disconnections
+      // "transport close" can happen during normal operations, so we'll be more specific
+      if (reason === 'io server disconnect' || 
+          reason === 'io client disconnect') {
+        // These are normal disconnections, don't show error
+        return;
+      }
+      
+      // For transport issues, only show error if it's not a brief reconnection
+      if (reason === 'transport close' || reason === 'transport error') {
+        // Wait a bit to see if it reconnects quickly
+        disconnectTimeout = setTimeout(() => {
+          setError('Connection lost. Attempting to reconnect...');
+        }, 3000); // Wait 3 seconds for transport issues
+        return;
+      }
+      
+      // For other unexpected disconnections, show error immediately
+      if (reason === 'ping timeout' || reason === 'server namespace disconnect') {
+        setError('Connection lost. Attempting to reconnect...');
+      }
     };
 
     const handleReconnect = () => {
       console.log('Reconnected to server');
+      // Clear any pending disconnect timeout
+      if (disconnectTimeout) {
+        clearTimeout(disconnectTimeout);
+      }
       setError(null);
     };
 
+    const handleReconnectAttempt = (attemptNumber: number) => {
+      console.log(`Reconnection attempt ${attemptNumber}`);
+    };
+
+    const handleReconnectError = (error: Error) => {
+      console.error('Reconnection failed:', error);
+      setError('Failed to reconnect. Please refresh the page.');
+    };
+
     socket.on('connect', handleConnect);
+    socket.on('connect_error', handleConnectError);
     socket.on('gameStateUpdate', handleGameStateUpdate);
     socket.on('roomCreated', handleRoomCreated);
     socket.on('error', handleError);
     socket.on('disconnect', handleDisconnect);
     socket.on('reconnect', handleReconnect);
+    socket.on('reconnect_attempt', handleReconnectAttempt);
+    socket.on('reconnect_error', handleReconnectError);
     
     socket.connect();
 
+    // Debug: Log connection status periodically
+    const connectionCheck = setInterval(() => {
+      console.log('Socket status check:', {
+        connected: socket.connected,
+        id: socket.id
+      });
+    }, 5000);
+
     return () => {
+      clearInterval(connectionCheck);
+      // Clear any pending timeout
+      if (disconnectTimeout) {
+        clearTimeout(disconnectTimeout);
+      }
+      
       socket.off('connect', handleConnect);
+      socket.off('connect_error', handleConnectError);
       socket.off('gameStateUpdate', handleGameStateUpdate);
       socket.off('roomCreated', handleRoomCreated);
       socket.off('error', handleError);
       socket.off('disconnect', handleDisconnect);
       socket.off('reconnect', handleReconnect);
+      socket.off('reconnect_attempt', handleReconnectAttempt);
+      socket.off('reconnect_error', handleReconnectError);
       socket.disconnect();
     };
-  }, [playerName]);
+  }, [playerName]); // Only run when playerName changes
 
   const handleLogin = (name: string) => {
     localStorage.setItem('playerName', name);
@@ -92,7 +161,34 @@ const App: React.FC = () => {
     socket.emit('joinRoom', { roomId, name: playerName });
   }
 
-  const handleStartGame = () => socket.emit('startGame', { roomId: gameState?.roomId });
+  const handleReconnect = () => {
+    console.log('Manual reconnect requested');
+    setError(null);
+    socket.connect();
+  };
+
+  const handleStartGame = () => {
+    console.log('Starting game for room:', gameState?.roomId);
+    console.log('Current game state:', gameState);
+    console.log('Socket connected:', socket.connected);
+    console.log('Socket ID:', socket.id);
+    
+    if (!gameState?.roomId) {
+      console.error('Cannot start game: roomId is undefined');
+      setError('Cannot start game: room ID is missing');
+      return;
+    }
+    
+    if (!socket.connected) {
+      console.error('Cannot start game: socket is not connected');
+      setError('Connection lost. Please wait for reconnection...');
+      // Try to reconnect
+      socket.connect();
+      return;
+    }
+    
+    socket.emit('startGame', { roomId: gameState.roomId });
+  };
   const handlePlayerChoice = (choice: number) => socket.emit('playerChoice', { choice, roomId: gameState?.roomId });
   const handleRestartGame = () => socket.emit('restartGame', { roomId: gameState?.roomId });
 
@@ -120,7 +216,7 @@ const App: React.FC = () => {
   const renderGameContent = () => {
     switch (gamePhase) {
       case GamePhase.LOBBY:
-        return <Lobby onStart={handleStartGame} players={players} spectators={spectators} clientId={clientId} roomId={roomId} />;
+        return <Lobby onStart={handleStartGame} players={players} spectators={spectators} clientId={clientId} roomId={roomId} gamePhase={gamePhase} error={error} isConnected={socket.connected} onReconnect={handleReconnect} />;
       case GamePhase.INTRODUCTION:
         return (
           <div className="flex flex-col items-center justify-center h-full animate-fade-in">
